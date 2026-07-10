@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
-import { analistasCollection, addDoc, updateDoc, deleteDoc, doc, db } from '../db/firebase';
+import { useListVals } from 'react-firebase-hooks/database';
+import { analistasRef, push, set, remove, ref, db } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Label } from '../components/ui/Input';
@@ -13,20 +13,21 @@ export function AnalistasPage() {
   const [isEditing, setIsEditing] = useState<Partial<Analista> | null>(null);
   const [formData, setFormData] = useState({ nome: '' });
 
-  const [analistasDocs, loading, error] = useCollectionData(analistasCollection, { idField: 'id' });
-  const analistas = (analistasDocs as Analista[]) || [];
+  const [analistasDocs, loading, error] = useListVals<Analista>(analistasRef, { keyField: 'id' });
+  const analistas = analistasDocs || [];
 
   const filteredAnalistas = analistas?.filter(a => a.nome.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nome) return;
+    if (!formData.nome.trim()) return;
     
     const now = Date.now();
     if (isEditing?.id) {
-      await updateDoc(doc(db, 'analistas', isEditing.id), { ...formData });
+      await set(ref(db, `analistas/${isEditing.id}`), { ...formData, createdAt: isEditing.createdAt || now });
     } else {
-      await addDoc(analistasCollection, { ...formData, createdAt: now });
+      const newRef = push(analistasRef);
+      await set(newRef, { ...formData, createdAt: now });
     }
     
     setFormData({ nome: '' });
@@ -40,7 +41,7 @@ export function AnalistasPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este analista?')) {
-      await deleteDoc(doc(db, 'analistas', id));
+      await remove(ref(db, `analistas/${id}`));
     }
   };
 

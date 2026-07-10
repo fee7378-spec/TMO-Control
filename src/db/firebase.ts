@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore, initializeFirestore, collection, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, getDoc } from "firebase/firestore";
+import { getDatabase, ref, push, set, remove, update, query, orderByChild } from "firebase/database";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYZ6rkVXqM_owmGpIGIkysngpw88sjtyk",
@@ -7,14 +7,15 @@ const firebaseConfig = {
   projectId: "tmo-control",
   storageBucket: "tmo-control.firebasestorage.app",
   messagingSenderId: "266940379379",
-  appId: "1:266940379379:web:e575be115dbd827d954786"
+  appId: "1:266940379379:web:e575be115dbd827d954786",
+  databaseURL: "https://tmo-control-default-rtdb.firebaseio.com" // or the correct one if needed, actually it defaults to the authDomain mostly but we should supply it
 };
 
 export const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+export const db = getDatabase(app);
 
-export const esteirasCollection = collection(db, 'esteiras');
-export const analistasCollection = collection(db, 'analistas');
-export const medicoesCollection = collection(db, 'medicoes');
+export const esteirasRef = ref(db, 'esteiras');
+export const analistasRef = ref(db, 'analistas');
+export const medicoesRef = ref(db, 'medicoes');
 
-export { addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, getDoc };
+export { push, set, remove, update, ref, query, orderByChild };

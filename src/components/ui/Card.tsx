@@ -1,7 +1,10 @@
 import React from 'react';
 import { cn } from '../../utils';
 
-interface CardProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  children?: React.ReactNode;
+  className?: string;
+}
 
 export function Card({ className, ...props }: CardProps) {
   return (

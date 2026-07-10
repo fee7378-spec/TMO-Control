@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
-import { esteirasCollection, addDoc, updateDoc, deleteDoc, doc, db } from '../db/firebase';
+import { useListVals } from 'react-firebase-hooks/database';
+import { esteirasRef, push, set, remove, ref, db } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Label, Select } from '../components/ui/Input';
@@ -13,20 +13,21 @@ export function EsteirasPage() {
   const [isEditing, setIsEditing] = useState<Partial<Esteira> | null>(null);
   const [formData, setFormData] = useState({ nome: '', descricao: '', status: 'Ativa' as 'Ativa'|'Inativa' });
 
-  const [esteirasDocs, loading, error] = useCollectionData(esteirasCollection, { idField: 'id' });
-  const esteiras = (esteirasDocs as Esteira[]) || [];
+  const [esteirasDocs, loading, error] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
+  const esteiras = esteirasDocs || [];
 
   const filteredEsteiras = esteiras?.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nome) return;
+    if (!formData.nome.trim()) return;
     
     const now = Date.now();
     if (isEditing?.id) {
-      await updateDoc(doc(db, 'esteiras', isEditing.id), { ...formData, updatedAt: now });
+      await set(ref(db, `esteiras/${isEditing.id}`), { ...formData, updatedAt: now, createdAt: isEditing.createdAt || now });
     } else {
-      await addDoc(esteirasCollection, { ...formData, createdAt: now, updatedAt: now });
+      const newRef = push(esteirasRef);
+      await set(newRef, { ...formData, createdAt: now, updatedAt: now });
     }
     
     setFormData({ nome: '', descricao: '', status: 'Ativa' });
@@ -40,7 +41,7 @@ export function EsteirasPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir esta esteira?')) {
-      await deleteDoc(doc(db, 'esteiras', id));
+      await remove(ref(db, `esteiras/${id}`));
     }
   };
 

@@ -1,22 +1,115 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
-import { esteirasCollection, analistasCollection, medicoesCollection, addDoc, query, orderBy, getDoc, doc, db } from '../db/firebase';
+import { useListVals } from 'react-firebase-hooks/database';
+import { esteirasRef, analistasRef, medicoesRef, push, set, query, orderByChild } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Label, Select } from '../components/ui/Input';
 import { formatTime, formatDateTime } from '../utils';
-import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X, Edit3 } from 'lucide-react';
 import type { Medicao, Esteira, Analista } from '../types';
 
-function MedicaoCronometro({ 
-  onRemove, 
-  esteiras, 
-  analistas 
-}: { 
+function MedicaoManual({
+  esteiras,
+  analistas
+}: {
+  esteiras: Esteira[],
+  analistas: Analista[]
+}) {
+  const [selectedEsteira, setSelectedEsteira] = useState('');
+  const [selectedAnalista, setSelectedAnalista] = useState('');
+  const [tempoMinutos, setTempoMinutos] = useState('');
+  const [tempoSegundos, setTempoSegundos] = useState('');
+  const [observacao, setObservacao] = useState('');
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEsteira || !selectedAnalista || (!tempoMinutos && !tempoSegundos)) {
+      alert('Preencha a esteira, analista e o tempo.');
+      return;
+    }
+
+    const min = parseInt(tempoMinutos || '0', 10);
+    const sec = parseInt(tempoSegundos || '0', 10);
+    const elapsedTime = (min * 60 * 1000) + (sec * 1000);
+
+    const now = Date.now();
+    const novaMedicao: Medicao = {
+      esteiraId: selectedEsteira,
+      analistaId: selectedAnalista,
+      tempoEmMilissegundos: elapsedTime,
+      tempoFormatado: formatTime(elapsedTime),
+      horaInicio: now - elapsedTime,
+      horaFim: now,
+      observacao: observacao ? `[MANUAL] ${observacao}` : '[MANUAL]',
+      createdAt: now
+    };
+
+    const newRef = push(medicoesRef);
+    await set(newRef, novaMedicao);
+    setSelectedEsteira('');
+    setSelectedAnalista('');
+    setTempoMinutos('');
+    setTempoSegundos('');
+    setObservacao('');
+  };
+
+  return (
+    <Card className="border-blue-100 shadow-sm">
+      <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
+        <CardTitle className="text-blue-900 flex items-center text-lg">
+          <Edit3 className="w-4 h-4 mr-2" /> Inserção Manual de Tratativa
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label>Esteira</Label>
+              <Select value={selectedEsteira} onChange={e => setSelectedEsteira(e.target.value)} required>
+                <option value="">Selecione...</option>
+                {esteiras.filter(e => e.status === 'Ativa').map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Analista</Label>
+              <Select value={selectedAnalista} onChange={e => setSelectedAnalista(e.target.value)} required>
+                <option value="">Selecione...</option>
+                {analistas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tempo (Minutos)</Label>
+              <Input type="number" min="0" value={tempoMinutos} onChange={e => setTempoMinutos(e.target.value)} placeholder="Ex: 5" />
+            </div>
+            <div className="space-y-2">
+              <Label>Tempo (Segundos)</Label>
+              <Input type="number" min="0" max="59" value={tempoSegundos} onChange={e => setTempoSegundos(e.target.value)} placeholder="Ex: 30" />
+            </div>
+          </div>
+          <div className="flex gap-4 items-end">
+            <div className="space-y-2 flex-1">
+              <Label>Observação (Opcional)</Label>
+              <Input value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Detalhes da tratativa..." />
+            </div>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Save className="w-4 h-4 mr-2" /> Salvar Manual
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+const MedicaoCronometro: React.FC<{ 
   onRemove: () => void, 
   esteiras: Esteira[], 
-  analistas: Analista[] 
-}) {
+  analistas: Analista[]
+}> = ({ 
+  onRemove, 
+  esteiras, 
+  analistas
+}) => {
   const [selectedEsteira, setSelectedEsteira] = useState('');
   const [selectedAnalista, setSelectedAnalista] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -80,7 +173,8 @@ function MedicaoCronometro({
       createdAt: Date.now()
     };
 
-    await addDoc(medicoesCollection, novaMedicao);
+    const newRef = push(medicoesRef);
+    await set(newRef, novaMedicao);
     handleReset();
     setObservacao('');
   };
@@ -155,15 +249,16 @@ function MedicaoCronometro({
 export function HistoricoPage() {
   const [cronometros, setCronometros] = useState<string[]>(['1']);
 
-  const [esteirasDocs] = useCollectionData(esteirasCollection, { idField: 'id' });
-  const esteiras = (esteirasDocs as Esteira[]) || [];
+  const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
+  const esteiras = esteirasDocs || [];
   
-  const [analistasDocs] = useCollectionData(analistasCollection, { idField: 'id' });
-  const analistas = (analistasDocs as Analista[]) || [];
+  const [analistasDocs] = useListVals<Analista>(analistasRef, { keyField: 'id' });
+  const analistas = analistasDocs || [];
 
-  const [medicoesDocs, loading] = useCollectionData(query(medicoesCollection, orderBy('createdAt', 'desc')), { idField: 'id' });
+  const [medicoesDocs, loading] = useListVals<Medicao>(query(medicoesRef, orderByChild('createdAt')), { keyField: 'id' });
   
-  const medicoes = (medicoesDocs as Medicao[])?.map(m => {
+  const medicoes = (medicoesDocs || [])
+    .map(m => {
     const esteira = esteiras.find(e => e.id === m.esteiraId);
     const analista = analistas.find(a => a.id === m.analistaId);
     return {
@@ -171,7 +266,8 @@ export function HistoricoPage() {
       esteiraNome: esteira?.nome || 'N/A',
       analistaNome: analista?.nome || 'N/A'
     };
-  }) || [];
+  })
+  .sort((a, b) => b.createdAt - a.createdAt) || [];
 
   const addCronometro = () => {
     setCronometros([...cronometros, Math.random().toString(36).substr(2, 9)]);
@@ -210,11 +306,13 @@ export function HistoricoPage() {
           <MedicaoCronometro 
             key={id} 
             onRemove={() => removeCronometro(id)} 
-            esteiras={esteiras} 
-            analistas={analistas} 
+            esteiras={esteiras as Esteira[]} 
+            analistas={analistas as Analista[]} 
           />
         ))}
       </div>
+
+      <MedicaoManual esteiras={esteiras} analistas={analistas} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">

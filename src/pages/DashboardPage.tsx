@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { useCollectionData } from 'react-firebase-hooks/firestore';
-import { esteirasCollection, analistasCollection, medicoesCollection } from '../db/firebase';
+import { useListVals } from 'react-firebase-hooks/database';
+import { esteirasRef, analistasRef, medicoesRef } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { formatTime, formatDateTime } from '../utils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
@@ -11,16 +11,16 @@ import type { Medicao, Esteira, Analista } from '../types';
 export function DashboardPage() {
   const [selectedEsteiraFilter, setSelectedEsteiraFilter] = useState<string>('all');
 
-  const [esteirasDocs] = useCollectionData(esteirasCollection, { idField: 'id' });
-  const esteiras = (esteirasDocs as Esteira[]) || [];
+  const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
+  const esteiras = esteirasDocs || [];
 
-  const [analistasDocs] = useCollectionData(analistasCollection, { idField: 'id' });
-  const analistas = (analistasDocs as Analista[]) || [];
+  const [analistasDocs] = useListVals<Analista>(analistasRef, { keyField: 'id' });
+  const analistas = analistasDocs || [];
 
-  const [medicoesDocs] = useCollectionData(medicoesCollection, { idField: 'id' });
+  const [medicoesDocs] = useListVals<Medicao>(medicoesRef, { keyField: 'id' });
   
   const medicoes = useMemo(() => {
-    return ((medicoesDocs as Medicao[]) || []).map(m => {
+    return (medicoesDocs || []).map(m => {
       const esteira = esteiras.find(e => e.id === m.esteiraId);
       const analista = analistas.find(a => a.id === m.analistaId);
       return {
