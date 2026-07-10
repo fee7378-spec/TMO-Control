@@ -1,0 +1,6 @@
+{
+  "name": "TMO Control",
+  "description": "Sistema de controle e medição de Tempo Médio de Operação (TMO) de esteiras",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

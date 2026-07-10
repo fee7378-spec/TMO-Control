@@ -1,0 +1,263 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useCollectionData } from 'react-firebase-hooks/firestore';
+import { esteirasCollection, analistasCollection, medicoesCollection, addDoc, query, orderBy, getDoc, doc, db } from '../db/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input, Label, Select } from '../components/ui/Input';
+import { formatTime, formatDateTime } from '../utils';
+import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X } from 'lucide-react';
+import type { Medicao, Esteira, Analista } from '../types';
+
+function MedicaoCronometro({ 
+  onRemove, 
+  esteiras, 
+  analistas 
+}: { 
+  onRemove: () => void, 
+  esteiras: Esteira[], 
+  analistas: Analista[] 
+}) {
+  const [selectedEsteira, setSelectedEsteira] = useState('');
+  const [selectedAnalista, setSelectedAnalista] = useState('');
+  const [observacao, setObservacao] = useState('');
+  
+  // Stopwatch state
+  const [isRunning, setIsRunning] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+  const [horaInicioAbsoluta, setHoraInicioAbsoluta] = useState<number | null>(null);
+  
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isRunning) {
+      timerRef.current = window.setInterval(() => {
+        setElapsedTime(Date.now() - (startTime || Date.now()));
+      }, 10);
+    } else if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isRunning, startTime]);
+
+  const handleStart = () => {
+    if (!selectedEsteira || !selectedAnalista) {
+      alert('Selecione a Esteira e o Analista antes de iniciar.');
+      return;
+    }
+    if (!horaInicioAbsoluta) {
+      setHoraInicioAbsoluta(Date.now());
+    }
+    setStartTime(Date.now() - elapsedTime);
+    setIsRunning(true);
+  };
+
+  const handlePause = () => {
+    setIsRunning(false);
+  };
+
+  const handleReset = () => {
+    setIsRunning(false);
+    setElapsedTime(0);
+    setStartTime(null);
+    setHoraInicioAbsoluta(null);
+  };
+
+  const handleFinish = async () => {
+    if (elapsedTime === 0 || !horaInicioAbsoluta) return;
+    setIsRunning(false);
+    
+    const novaMedicao: Medicao = {
+      esteiraId: selectedEsteira,
+      analistaId: selectedAnalista,
+      tempoEmMilissegundos: elapsedTime,
+      tempoFormatado: formatTime(elapsedTime),
+      horaInicio: horaInicioAbsoluta,
+      horaFim: Date.now(),
+      observacao,
+      createdAt: Date.now()
+    };
+
+    await addDoc(medicoesCollection, novaMedicao);
+    handleReset();
+    setObservacao('');
+  };
+
+  return (
+    <Card className="border-blue-100 shadow-blue-50 relative">
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="absolute top-2 right-2 text-gray-400 hover:text-red-500 hover:bg-red-50 h-8 w-8"
+        onClick={onRemove}
+        title="Remover este cronômetro"
+      >
+        <X className="w-4 h-4" />
+      </Button>
+      <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
+        <CardTitle className="text-blue-900 flex items-center text-lg"><Play className="w-4 h-4 mr-2" /> Cronômetro</CardTitle>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-4 col-span-1 md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Esteira</Label>
+                <Select value={selectedEsteira} onChange={e => setSelectedEsteira(e.target.value)} disabled={isRunning || elapsedTime > 0}>
+                  <option value="">Selecione...</option>
+                  {esteiras.filter(e => e.status === 'Ativa').map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Analista</Label>
+                <Select value={selectedAnalista} onChange={e => setSelectedAnalista(e.target.value)} disabled={isRunning || elapsedTime > 0}>
+                  <option value="">Selecione...</option>
+                  {analistas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação (Opcional)</Label>
+              <Input value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Detalhes da tratativa..." />
+            </div>
+          </div>
+          
+          <div className="flex flex-col items-center justify-center space-y-4 bg-slate-50 p-3 lg:p-4 rounded-xl border border-slate-200 overflow-hidden">
+            <div className="text-xl sm:text-2xl lg:text-3xl font-mono font-bold tracking-tight text-slate-800 whitespace-nowrap tabular-nums">
+              {formatTime(elapsedTime)}
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {!isRunning ? (
+                <Button onClick={handleStart} className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1 h-8">
+                  <Play className="w-3 h-3 mr-1" /> {elapsedTime === 0 ? 'Iniciar' : 'Continuar'}
+                </Button>
+              ) : (
+                <Button onClick={handlePause} className="bg-amber-500 hover:bg-amber-600 text-xs px-2 py-1 h-8">
+                  <Pause className="w-3 h-3 mr-1" /> Pausar
+                </Button>
+              )}
+              <Button onClick={handleFinish} disabled={elapsedTime === 0} variant="default" className="text-xs px-2 py-1 h-8">
+                <Square className="w-3 h-3 mr-1" /> Finalizar
+              </Button>
+              <Button onClick={handleReset} variant="outline" size="icon" title="Reiniciar" className="h-8 w-8 flex-shrink-0">
+                <RotateCcw className="w-3 h-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function HistoricoPage() {
+  const [cronometros, setCronometros] = useState<string[]>(['1']);
+
+  const [esteirasDocs] = useCollectionData(esteirasCollection, { idField: 'id' });
+  const esteiras = (esteirasDocs as Esteira[]) || [];
+  
+  const [analistasDocs] = useCollectionData(analistasCollection, { idField: 'id' });
+  const analistas = (analistasDocs as Analista[]) || [];
+
+  const [medicoesDocs, loading] = useCollectionData(query(medicoesCollection, orderBy('createdAt', 'desc')), { idField: 'id' });
+  
+  const medicoes = (medicoesDocs as Medicao[])?.map(m => {
+    const esteira = esteiras.find(e => e.id === m.esteiraId);
+    const analista = analistas.find(a => a.id === m.analistaId);
+    return {
+      ...m,
+      esteiraNome: esteira?.nome || 'N/A',
+      analistaNome: analista?.nome || 'N/A'
+    };
+  }) || [];
+
+  const addCronometro = () => {
+    setCronometros([...cronometros, Math.random().toString(36).substr(2, 9)]);
+  };
+
+  const removeCronometro = (id: string) => {
+    setCronometros(cronometros.filter(c => c !== id));
+  };
+
+  const exportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + "ID,Esteira,Analista,Tempo,Hora Início,Hora Fim,Observação\n"
+      + medicoes.map(m => 
+          `${m.id},${m.esteiraNome},${m.analistaNome},${m.tempoFormatado},${formatDateTime(m.horaInicio)},${formatDateTime(m.horaFim)},${m.observacao}`
+        ).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "historico_medicoes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Registro e Histórico</h1>
+        <Button onClick={addCronometro} variant="outline" className="bg-white">
+          <Plus className="w-4 h-4 mr-2" /> Adicionar Cronômetro
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {cronometros.map(id => (
+          <MedicaoCronometro 
+            key={id} 
+            onRemove={() => removeCronometro(id)} 
+            esteiras={esteiras} 
+            analistas={analistas} 
+          />
+        ))}
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle>Histórico de Tratativas</CardTitle>
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="w-4 h-4 mr-2" /> Exportar CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left text-gray-500">
+              <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3">Data</th>
+                  <th className="px-4 py-3">Esteira</th>
+                  <th className="px-4 py-3">Analista</th>
+                  <th className="px-4 py-3">Tempo</th>
+                  <th className="px-4 py-3">Início</th>
+                  <th className="px-4 py-3">Fim</th>
+                  <th className="px-4 py-3">Observação</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={7} className="px-4 py-4 text-center text-gray-500">Carregando...</td></tr>
+                ) : medicoes.length === 0 ? (
+                  <tr><td colSpan={7} className="px-4 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
+                ) : medicoes.map((m: any) => (
+                  <tr key={m.id} className="bg-white border-b hover:bg-gray-50">
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.createdAt).split(' ')[0]}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{m.esteiraNome}</td>
+                    <td className="px-4 py-3">{m.analistaNome}</td>
+                    <td className="px-4 py-3 font-mono font-medium text-blue-600">{m.tempoFormatado}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaInicio).split(' ')[1]}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaFim).split(' ')[1]}</td>
+                    <td className="px-4 py-3 truncate max-w-xs" title={m.observacao}>{m.observacao}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
