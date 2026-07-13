@@ -102,82 +102,68 @@ function MedicaoManual({
   );
 }
 
+import { useTimerStore } from '../store/timerStore';
+
 const MedicaoCronometro: React.FC<{ 
-  onRemove: () => void, 
+  id: string,
   esteiras: Esteira[], 
   analistas: Analista[]
 }> = ({ 
-  onRemove, 
+  id,
   esteiras, 
   analistas
 }) => {
-  const [selectedEsteira, setSelectedEsteira] = useState('');
-  const [selectedAnalista, setSelectedAnalista] = useState('');
-  const [observacao, setObservacao] = useState('');
-  
-  // Stopwatch state
-  const [isRunning, setIsRunning] = useState(false);
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [horaInicioAbsoluta, setHoraInicioAbsoluta] = useState<number | null>(null);
-  
-  const timerRef = useRef<number | null>(null);
+  const timer = useTimerStore(state => state.timers.find(t => t.id === id));
+  const updateTimer = useTimerStore(state => state.updateTimer);
+  const removeTimer = useTimerStore(state => state.removeTimer);
 
-  useEffect(() => {
-    if (isRunning) {
-      timerRef.current = window.setInterval(() => {
-        setElapsedTime(Date.now() - (startTime || Date.now()));
-      }, 10);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [isRunning, startTime]);
+  if (!timer) return null;
 
   const handleStart = () => {
-    if (!selectedEsteira || !selectedAnalista) {
+    if (!timer.selectedEsteira || !timer.selectedAnalista) {
       alert('Selecione a Esteira e o Analista antes de iniciar.');
       return;
     }
-    if (!horaInicioAbsoluta) {
-      setHoraInicioAbsoluta(Date.now());
-    }
-    setStartTime(Date.now() - elapsedTime);
-    setIsRunning(true);
+    const horaInicioAbsoluta = timer.horaInicioAbsoluta || Date.now();
+    updateTimer(id, {
+      isRunning: true,
+      startTime: Date.now() - timer.elapsedTime,
+      horaInicioAbsoluta
+    });
   };
 
   const handlePause = () => {
-    setIsRunning(false);
+    updateTimer(id, { isRunning: false });
   };
 
   const handleReset = () => {
-    setIsRunning(false);
-    setElapsedTime(0);
-    setStartTime(null);
-    setHoraInicioAbsoluta(null);
+    updateTimer(id, {
+      isRunning: false,
+      elapsedTime: 0,
+      startTime: null,
+      horaInicioAbsoluta: null
+    });
   };
 
   const handleFinish = async () => {
-    if (elapsedTime === 0 || !horaInicioAbsoluta) return;
-    setIsRunning(false);
+    if (timer.elapsedTime === 0 || !timer.horaInicioAbsoluta) return;
+    updateTimer(id, { isRunning: false });
     
     const novaMedicao: Medicao = {
-      esteiraId: selectedEsteira,
-      analistaId: selectedAnalista,
-      tempoEmMilissegundos: elapsedTime,
-      tempoFormatado: formatTime(elapsedTime),
-      horaInicio: horaInicioAbsoluta,
+      esteiraId: timer.selectedEsteira,
+      analistaId: timer.selectedAnalista,
+      tempoEmMilissegundos: timer.elapsedTime,
+      tempoFormatado: formatTime(timer.elapsedTime),
+      horaInicio: timer.horaInicioAbsoluta,
       horaFim: Date.now(),
-      observacao,
+      observacao: timer.observacao,
       createdAt: Date.now()
     };
 
     const newRef = push(medicoesRef);
     await set(newRef, novaMedicao);
     handleReset();
-    setObservacao('');
+    updateTimer(id, { observacao: '' });
   };
 
   return (
@@ -186,7 +172,7 @@ const MedicaoCronometro: React.FC<{
         variant="ghost" 
         size="icon" 
         className="absolute top-2 right-2 text-gray-400 hover:text-red-500 hover:bg-red-50 h-8 w-8"
-        onClick={onRemove}
+        onClick={() => removeTimer(id)}
         title="Remover este cronômetro"
       >
         <X className="w-4 h-4" />
@@ -200,14 +186,14 @@ const MedicaoCronometro: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Esteira</Label>
-                <Select value={selectedEsteira} onChange={e => setSelectedEsteira(e.target.value)} disabled={isRunning || elapsedTime > 0}>
+                <Select value={timer.selectedEsteira} onChange={e => updateTimer(id, { selectedEsteira: e.target.value })} disabled={timer.isRunning || timer.elapsedTime > 0}>
                   <option value="">Selecione...</option>
                   {esteiras.filter(e => e.status === 'Ativa').map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Analista</Label>
-                <Select value={selectedAnalista} onChange={e => setSelectedAnalista(e.target.value)} disabled={isRunning || elapsedTime > 0}>
+                <Select value={timer.selectedAnalista} onChange={e => updateTimer(id, { selectedAnalista: e.target.value })} disabled={timer.isRunning || timer.elapsedTime > 0}>
                   <option value="">Selecione...</option>
                   {analistas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                 </Select>
@@ -215,25 +201,25 @@ const MedicaoCronometro: React.FC<{
             </div>
             <div className="space-y-2">
               <Label>Observação (Opcional)</Label>
-              <Input value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Detalhes da tratativa..." />
+              <Input value={timer.observacao} onChange={e => updateTimer(id, { observacao: e.target.value })} placeholder="Detalhes da tratativa..." />
             </div>
           </div>
           
           <div className="w-full lg:w-96 flex flex-col items-center justify-center space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shrink-0">
             <div className="text-3xl font-mono font-bold tracking-tight text-slate-800 whitespace-nowrap tabular-nums">
-              {formatTime(elapsedTime)}
+              {formatTime(timer.elapsedTime)}
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-              {!isRunning ? (
+              {!timer.isRunning ? (
                 <Button onClick={handleStart} className="bg-green-600 hover:bg-green-700 text-sm px-4 h-10">
-                  <Play className="w-4 h-4 mr-2" /> {elapsedTime === 0 ? 'Iniciar' : 'Continuar'}
+                  <Play className="w-4 h-4 mr-2" /> {timer.elapsedTime === 0 ? 'Iniciar' : 'Continuar'}
                 </Button>
               ) : (
                 <Button onClick={handlePause} className="bg-amber-500 hover:bg-amber-600 text-sm px-4 h-10">
                   <Pause className="w-4 h-4 mr-2" /> Pausar
                 </Button>
               )}
-              <Button onClick={handleFinish} disabled={elapsedTime === 0} variant="default" className="text-sm px-4 h-10">
+              <Button onClick={handleFinish} disabled={timer.elapsedTime === 0} variant="default" className="text-sm px-4 h-10">
                 <Square className="w-4 h-4 mr-2" /> Finalizar
               </Button>
               <Button onClick={handleReset} variant="outline" size="icon" title="Reiniciar" className="h-10 w-10 flex-shrink-0">
@@ -249,7 +235,7 @@ const MedicaoCronometro: React.FC<{
 
 export function HistoricoPage() {
   const { confirm } = useConfirm();
-  const [cronometros, setCronometros] = useState<string[]>(['1']);
+  const { timers, addTimer } = useTimerStore();
   const [visibleCount, setVisibleCount] = useState(10);
 
   const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
@@ -271,14 +257,6 @@ export function HistoricoPage() {
     };
   })
   .sort((a, b) => b.createdAt - a.createdAt) || [];
-
-  const addCronometro = () => {
-    setCronometros([...cronometros, Math.random().toString(36).substr(2, 9)]);
-  };
-
-  const removeCronometro = (id: string) => {
-    setCronometros(cronometros.filter(c => c !== id));
-  };
 
   const exportCSV = () => {
     const csvContent = "\uFEFFID,Esteira,Analista,Tempo,Hora Início,Hora Fim,Observação\n"
@@ -324,16 +302,16 @@ export function HistoricoPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">Registro e Histórico</h1>
-        <Button onClick={addCronometro} variant="outline" className="bg-white">
+        <Button onClick={() => addTimer()} variant="outline" className="bg-white">
           <Plus className="w-4 h-4 mr-2" /> Adicionar Cronômetro
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {cronometros.map(id => (
+        {timers.map(timer => (
           <MedicaoCronometro 
-            key={id} 
-            onRemove={() => removeCronometro(id)} 
+            key={timer.id} 
+            id={timer.id} 
             esteiras={esteiras as Esteira[]} 
             analistas={analistas as Analista[]} 
           />

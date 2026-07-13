@@ -1,7 +1,8 @@
-import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, History, Settings, Users, Activity, Play } from 'lucide-react';
-import { cn } from '../../utils';
+import { cn, formatTime } from '../../utils';
+import { useTimerStore } from '../../store/timerStore';
 
 const navItems = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -11,8 +12,21 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const location = useLocation();
+  const { timers, tick } = useTimerStore();
+
+  useEffect(() => {
+    const hasRunning = timers.some(t => t.isRunning);
+    if (!hasRunning) return;
+    const interval = setInterval(tick, 100);
+    return () => clearInterval(interval);
+  }, [timers, tick]);
+
+  const runningTimers = timers.filter(t => t.isRunning || t.elapsedTime > 0);
+  const showPopup = location.pathname !== '/historico' && runningTimers.length > 0;
+
   return (
-    <aside className="w-64 bg-slate-950 text-slate-300 min-h-screen flex flex-col">
+    <aside className="w-64 bg-slate-950 text-slate-300 min-h-screen flex flex-col relative">
       <div className="h-16 flex items-center px-6 border-b border-slate-800">
         <Activity className="h-6 w-6 text-blue-800 mr-2" />
         <span className="font-bold text-lg text-white">TMO Control</span>
@@ -36,6 +50,37 @@ export function Sidebar() {
           </NavLink>
         ))}
       </nav>
+      
+      {showPopup && (
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+          <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            Cronômetros Ativos
+          </h4>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+            {runningTimers.map((t, idx) => (
+              <div key={t.id} className="bg-slate-800 rounded-lg p-3 flex flex-col gap-1 border border-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Cronômetro {idx + 1}</span>
+                  {t.isRunning ? (
+                    <span className="flex h-2 w-2 relative">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                  ) : (
+                    <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                  )}
+                </div>
+                <div className="text-lg font-mono font-bold text-white tabular-nums tracking-tight">
+                  {formatTime(t.elapsedTime)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <NavLink to="/historico" className="mt-3 block w-full text-center text-xs text-blue-400 hover:text-blue-300">
+            Ir para Registro &rarr;
+          </NavLink>
+        </div>
+      )}
     </aside>
   );
 }
