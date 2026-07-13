@@ -63,8 +63,13 @@ export function Layout() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+        <main className="flex-1 overflow-auto flex flex-col">
+          <div className="flex-1 p-6">
+            <Outlet />
+          </div>
+          <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200 bg-white">
+            &copy; Developed by Felipe Nascimento
+          </footer>
         </main>
       </div>
     </div>

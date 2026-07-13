@@ -195,8 +195,8 @@ const MedicaoCronometro: React.FC<{
         <CardTitle className="text-slate-800 flex items-center text-lg"><Play className="w-4 h-4 mr-2" /> Cronômetro</CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="space-y-4 col-span-1 md:col-span-2">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex-1 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Esteira</Label>
@@ -219,25 +219,25 @@ const MedicaoCronometro: React.FC<{
             </div>
           </div>
           
-          <div className="flex flex-col items-center justify-center space-y-4 bg-slate-50 p-3 lg:p-4 rounded-xl border border-slate-200 overflow-hidden">
-            <div className="text-xl sm:text-2xl lg:text-3xl font-mono font-bold tracking-tight text-slate-800 whitespace-nowrap tabular-nums">
+          <div className="w-full lg:w-96 flex flex-col items-center justify-center space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200 shrink-0">
+            <div className="text-3xl font-mono font-bold tracking-tight text-slate-800 whitespace-nowrap tabular-nums">
               {formatTime(elapsedTime)}
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               {!isRunning ? (
-                <Button onClick={handleStart} className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1 h-8">
-                  <Play className="w-3 h-3 mr-1" /> {elapsedTime === 0 ? 'Iniciar' : 'Continuar'}
+                <Button onClick={handleStart} className="bg-green-600 hover:bg-green-700 text-sm px-4 h-10">
+                  <Play className="w-4 h-4 mr-2" /> {elapsedTime === 0 ? 'Iniciar' : 'Continuar'}
                 </Button>
               ) : (
-                <Button onClick={handlePause} className="bg-amber-500 hover:bg-amber-600 text-xs px-2 py-1 h-8">
-                  <Pause className="w-3 h-3 mr-1" /> Pausar
+                <Button onClick={handlePause} className="bg-amber-500 hover:bg-amber-600 text-sm px-4 h-10">
+                  <Pause className="w-4 h-4 mr-2" /> Pausar
                 </Button>
               )}
-              <Button onClick={handleFinish} disabled={elapsedTime === 0} variant="default" className="text-xs px-2 py-1 h-8">
-                <Square className="w-3 h-3 mr-1" /> Finalizar
+              <Button onClick={handleFinish} disabled={elapsedTime === 0} variant="default" className="text-sm px-4 h-10">
+                <Square className="w-4 h-4 mr-2" /> Finalizar
               </Button>
-              <Button onClick={handleReset} variant="outline" size="icon" title="Reiniciar" className="h-8 w-8 flex-shrink-0">
-                <RotateCcw className="w-3 h-3" />
+              <Button onClick={handleReset} variant="outline" size="icon" title="Reiniciar" className="h-10 w-10 flex-shrink-0">
+                <RotateCcw className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -250,6 +250,7 @@ const MedicaoCronometro: React.FC<{
 export function HistoricoPage() {
   const { confirm } = useConfirm();
   const [cronometros, setCronometros] = useState<string[]>(['1']);
+  const [visibleCount, setVisibleCount] = useState(10);
 
   const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
   const esteiras = Array.from(new Map((esteirasDocs || []).map(e => [e.id, e])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
@@ -280,18 +281,19 @@ export function HistoricoPage() {
   };
 
   const exportCSV = () => {
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + "ID,Esteira,Analista,Tempo,Hora Início,Hora Fim,Observação\n"
+    const csvContent = "\uFEFFID,Esteira,Analista,Tempo,Hora Início,Hora Fim,Observação\n"
       + medicoes.map(m => 
-          `${m.id},${m.esteiraNome},${m.analistaNome},${m.tempoFormatado},${formatDateTime(m.horaInicio)},${formatDateTime(m.horaFim)},${m.observacao}`
+          `${m.id},"${m.esteiraNome}","${m.analistaNome}",${m.tempoFormatado},"${formatDateTime(m.horaInicio)}","${formatDateTime(m.horaFim)}","${m.observacao}"`
         ).join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const encodedUri = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
     link.setAttribute("download", "historico_medicoes.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(encodedUri);
   };
 
   const handleDelete = async (id: string) => {
@@ -327,7 +329,7 @@ export function HistoricoPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {cronometros.map(id => (
           <MedicaoCronometro 
             key={id} 
@@ -372,7 +374,7 @@ export function HistoricoPage() {
                   <tr><td colSpan={8} className="px-4 py-4 text-center text-gray-500">Carregando...</td></tr>
                 ) : medicoes.length === 0 ? (
                   <tr><td colSpan={8} className="px-4 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
-                ) : medicoes.map((m: any) => (
+                ) : medicoes.slice(0, visibleCount).map((m: any) => (
                   <tr key={m.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.createdAt).split(' ')[0]}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{m.esteiraNome}</td>
@@ -391,6 +393,20 @@ export function HistoricoPage() {
               </tbody>
             </table>
           </div>
+          {medicoes.length > visibleCount && (
+            <div className="mt-6 flex flex-col items-center justify-center space-y-2">
+              <p className="text-sm text-gray-500">
+                Mostrando {visibleCount} de {medicoes.length} registros
+              </p>
+              <Button 
+                variant="outline" 
+                onClick={() => setVisibleCount(prev => prev + 10)}
+                className="w-full sm:w-auto"
+              >
+                Mostrar mais 10 registros
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -157,17 +157,17 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>TMO por Esteira</CardTitle>
           </CardHeader>
-          <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
-            <div style={{ width: tmoPorEsteiraData.length > 6 ? `${tmoPorEsteiraData.length * 80}px` : '100%', height: '100%' }}>
+          <CardContent className="h-[380px] overflow-x-auto overflow-y-hidden">
+            <div style={{ width: tmoPorEsteiraData.length > 4 ? `${tmoPorEsteiraData.length * 200}px` : '100%', height: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tmoPorEsteiraData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={tmoPorEsteiraData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} interval={0} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <RechartsTooltip content={<CustomTooltip />} />
                   <Bar dataKey="TMO" fill="#1e3a8a" radius={[4, 4, 0, 0]} maxBarSize={50}>
@@ -183,12 +183,12 @@ export function DashboardPage() {
           <CardHeader>
             <CardTitle>TMO Médio por Analista</CardTitle>
           </CardHeader>
-          <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
-            <div style={{ width: tmoPorAnalistaData.length > 6 ? `${tmoPorAnalistaData.length * 80}px` : '100%', height: '100%' }}>
+          <CardContent className="h-[380px] overflow-x-auto overflow-y-hidden">
+            <div style={{ width: tmoPorAnalistaData.length > 4 ? `${tmoPorAnalistaData.length * 200}px` : '100%', height: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tmoPorAnalistaData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <BarChart data={tmoPorAnalistaData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} interval={0} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <RechartsTooltip content={<CustomTooltip />} />
                   <Bar dataKey="TMO" fill="#1e3a8a" radius={[4, 4, 0, 0]} maxBarSize={50}>
