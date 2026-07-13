@@ -7,8 +7,10 @@ import { Input, Label, Select } from '../components/ui/Input';
 import { formatDateTime } from '../utils';
 import { Plus, Edit2, Trash2, Search } from 'lucide-react';
 import type { Esteira } from '../types';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 export function EsteirasPage() {
+  const { confirm } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState<Partial<Esteira> | null>(null);
   const [formData, setFormData] = useState({ nome: '', descricao: '', status: 'Ativa' as 'Ativa'|'Inativa' });
@@ -40,7 +42,13 @@ export function EsteirasPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta esteira?')) {
+    const isConfirmed = await confirm({
+      title: 'Excluir Esteira',
+      message: 'Tem certeza que deseja excluir esta esteira?',
+      destructive: true,
+      confirmText: 'Excluir'
+    });
+    if (isConfirmed) {
       await remove(ref(db, `esteiras/${id}`));
     }
   };

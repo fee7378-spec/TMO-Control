@@ -7,8 +7,10 @@ import { Input, Label } from '../components/ui/Input';
 import { formatDateTime } from '../utils';
 import { Edit2, Trash2, Search } from 'lucide-react';
 import type { Analista } from '../types';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 export function AnalistasPage() {
+  const { confirm } = useConfirm();
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditing, setIsEditing] = useState<Partial<Analista> | null>(null);
   const [formData, setFormData] = useState({ nome: '' });
@@ -40,7 +42,13 @@ export function AnalistasPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este analista?')) {
+    const isConfirmed = await confirm({
+      title: 'Excluir Analista',
+      message: 'Tem certeza que deseja excluir este analista?',
+      destructive: true,
+      confirmText: 'Excluir'
+    });
+    if (isConfirmed) {
       await remove(ref(db, `analistas/${id}`));
     }
   };

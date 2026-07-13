@@ -56,22 +56,21 @@ export function DashboardPage() {
     });
     return Array.from(map.entries()).map(([nome, data]) => ({
       name: nome,
-      TMO: Math.floor((data.total / data.count) / 1000) // em segundos
+      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)) // em minutos
     }));
   }, [medicoes]);
 
-  // Chart Data: Evolução Temporal
-  const evolucaoData = useMemo(() => {
+  // Chart Data: TMO por Analista
+  const tmoPorAnalistaData = useMemo(() => {
     const map = new Map<string, { total: number, count: number }>();
     filteredMedicoes.forEach(m => {
-      const date = formatDateTime(m.createdAt).split(' ')[0];
-      const curr = map.get(date) || { total: 0, count: 0 };
-      map.set(date, { total: curr.total + m.tempoEmMilissegundos, count: curr.count + 1 });
+      const curr = map.get(m.analistaNome) || { total: 0, count: 0 };
+      map.set(m.analistaNome, { total: curr.total + m.tempoEmMilissegundos, count: curr.count + 1 });
     });
-    return Array.from(map.entries()).map(([date, data]) => ({
-      date: date.substring(0, 5), // DD/MM
-      TMO: Math.floor((data.total / data.count) / 1000)
-    })).sort((a,b) => a.date.localeCompare(b.date)); // Simple string sort for DD/MM, fine for preview
+    return Array.from(map.entries()).map(([nome, data]) => ({
+      name: nome,
+      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)) // em minutos
+    })).sort((a,b) => b.TMO - a.TMO);
   }, [filteredMedicoes]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -79,7 +78,7 @@ export function DashboardPage() {
       return (
         <div className="bg-white p-3 border rounded shadow-sm text-sm">
           <p className="font-semibold text-gray-800">{label}</p>
-          <p className="text-blue-600">TMO: {payload[0].value}s</p>
+          <p className="text-blue-600">TMO: {payload[0].value} min</p>
         </div>
       );
     }
@@ -89,7 +88,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard Executivo</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
         
         <div className="w-full md:w-64">
           <Select value={selectedEsteiraFilter} onChange={(e) => setSelectedEsteiraFilter(e.target.value)} className="bg-white">
@@ -149,35 +148,39 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>TMO Médio por Esteira (Segundos)</CardTitle>
+            <CardTitle>TMO por Esteira (Minutos)</CardTitle>
           </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={tmoPorEsteiraData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Bar dataKey="TMO" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
+            <div style={{ width: tmoPorEsteiraData.length > 6 ? `${tmoPorEsteiraData.length * 80}px` : '100%', height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tmoPorEsteiraData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Bar dataKey="TMO" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Evolução do TMO por Dia (Segundos)</CardTitle>
+            <CardTitle>TMO médio por analista</CardTitle>
           </CardHeader>
-          <CardContent className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={evolucaoData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
-                <RechartsTooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="TMO" stroke="#10b981" strokeWidth={3} dot={{r: 4, fill: '#10b981', strokeWidth: 0}} activeDot={{r: 6}} />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
+            <div style={{ width: tmoPorAnalistaData.length > 6 ? `${tmoPorAnalistaData.length * 80}px` : '100%', height: '100%' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tmoPorAnalistaData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Bar dataKey="TMO" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       </div>

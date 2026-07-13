@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useListVals } from 'react-firebase-hooks/database';
-import { esteirasRef, analistasRef, medicoesRef, push, set, query, orderByChild } from '../db/firebase';
+import { esteirasRef, analistasRef, medicoesRef, push, set, query, orderByChild, remove, ref, db } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Label, Select } from '../components/ui/Input';
 import { formatTime, formatDateTime } from '../utils';
-import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X, Edit3 } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X, Edit3, Trash2 } from 'lucide-react';
 import type { Medicao, Esteira, Analista } from '../types';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 function MedicaoManual({
   esteiras,
@@ -247,6 +248,7 @@ const MedicaoCronometro: React.FC<{
 }
 
 export function HistoricoPage() {
+  const { confirm } = useConfirm();
   const [cronometros, setCronometros] = useState<string[]>(['1']);
 
   const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
@@ -292,6 +294,30 @@ export function HistoricoPage() {
     document.body.removeChild(link);
   };
 
+  const handleDelete = async (id: string) => {
+    const isConfirmed = await confirm({
+      title: 'Excluir Registro',
+      message: 'Tem certeza que deseja excluir este registro?',
+      destructive: true,
+      confirmText: 'Excluir'
+    });
+    if (isConfirmed) {
+      await remove(ref(db, `medicoes/${id}`));
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    const isConfirmed = await confirm({
+      title: 'Excluir Todos os Registros',
+      message: 'ATENÇÃO: Tem certeza que deseja excluir TODOS os registros? Esta ação não pode ser desfeita.',
+      destructive: true,
+      confirmText: 'Excluir Todos'
+    });
+    if (isConfirmed) {
+      await remove(ref(db, 'medicoes'));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -317,9 +343,14 @@ export function HistoricoPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Histórico de Tratativas</CardTitle>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="w-4 h-4 mr-2" /> Exportar CSV
-          </Button>
+          <div className="flex space-x-2">
+            <Button variant="outline" size="sm" onClick={exportCSV}>
+              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleDeleteAll} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+              <Trash2 className="w-4 h-4 mr-2" /> Excluir Todos
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -333,13 +364,14 @@ export function HistoricoPage() {
                   <th className="px-4 py-3">Início</th>
                   <th className="px-4 py-3">Fim</th>
                   <th className="px-4 py-3">Observação</th>
+                  <th className="px-4 py-3 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7} className="px-4 py-4 text-center text-gray-500">Carregando...</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-4 text-center text-gray-500">Carregando...</td></tr>
                 ) : medicoes.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-4 text-center text-gray-500">Nenhum registro encontrado.</td></tr>
                 ) : medicoes.map((m: any) => (
                   <tr key={m.id} className="bg-white border-b hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.createdAt).split(' ')[0]}</td>
@@ -349,6 +381,11 @@ export function HistoricoPage() {
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaInicio).split(' ')[1]}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaFim).split(' ')[1]}</td>
                     <td className="px-4 py-3 truncate max-w-xs" title={m.observacao}>{m.observacao}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(m.id)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
