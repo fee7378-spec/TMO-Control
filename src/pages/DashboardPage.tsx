@@ -58,7 +58,8 @@ export function DashboardPage() {
     return Array.from(map.entries()).map(([nome, data]) => ({
       name: nome,
       TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)), // em minutos
-      ms: Math.floor(data.total / data.count)
+      ms: Math.floor(data.total / data.count),
+      volume: data.count
     })).sort((a,b) => a.name.localeCompare(b.name));
   }, [medicoes]);
 
@@ -97,6 +98,16 @@ export function DashboardPage() {
     );
   };
 
+  const CustomVolumeLabel = (props: any) => {
+    const { x, y, width, height, value } = props;
+    if (height < 15) return null; // hide if bar is too short
+    return (
+      <text x={x + width / 2} y={y + height / 2} fill="#ffffff" fontSize={12} fontWeight="bold" textAnchor="middle" dominantBaseline="middle">
+        {value}
+      </text>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -110,7 +121,7 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card>
           <CardContent className="p-6 flex items-center space-x-4">
             <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
@@ -144,23 +155,12 @@ export function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-6 flex items-center space-x-4">
-            <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
-              <Activity className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-500">Esteiras Utilizadas</p>
-              <h3 className="text-2xl font-bold text-gray-900">{selectedEsteiraFilter === 'all' ? esteiras.length : 1}</h3>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>TMO por Esteira</CardTitle>
+            <CardTitle>TMO/Volume por Esteira</CardTitle>
           </CardHeader>
           <CardContent className="h-[380px] overflow-x-auto overflow-y-hidden">
             <div style={{ width: tmoPorEsteiraData.length > 4 ? `${tmoPorEsteiraData.length * 200}px` : '100%', height: '100%' }}>
@@ -172,6 +172,7 @@ export function DashboardPage() {
                   <RechartsTooltip content={<CustomTooltip />} />
                   <Bar dataKey="TMO" fill="#1e3a8a" radius={[4, 4, 0, 0]} maxBarSize={50}>
                     <LabelList dataKey="ms" content={<CustomBarLabel />} />
+                    <LabelList dataKey="volume" content={<CustomVolumeLabel />} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
