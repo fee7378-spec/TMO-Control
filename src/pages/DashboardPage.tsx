@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useListVals } from 'react-firebase-hooks/database';
 import { esteirasRef, analistasRef, medicoesRef } from '../db/firebase';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
-import { formatTime, formatDateTime } from '../utils';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { formatTimeHHMMSS, formatDateTime } from '../utils';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { Select, Label } from '../components/ui/Input';
 import { Activity, Clock, Users, Hash } from 'lucide-react';
 import type { Medicao, Esteira, Analista } from '../types';
@@ -12,15 +12,16 @@ export function DashboardPage() {
   const [selectedEsteiraFilter, setSelectedEsteiraFilter] = useState<string>('all');
 
   const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
-  const esteiras = esteirasDocs || [];
+  const esteiras = Array.from(new Map((esteirasDocs || []).map(e => [e.id, e])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
 
   const [analistasDocs] = useListVals<Analista>(analistasRef, { keyField: 'id' });
-  const analistas = analistasDocs || [];
+  const analistas = Array.from(new Map((analistasDocs || []).map(a => [a.id, a])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
 
   const [medicoesDocs] = useListVals<Medicao>(medicoesRef, { keyField: 'id' });
+  const medicoesRaw = Array.from(new Map((medicoesDocs || []).map(m => [m.id, m])).values());
   
   const medicoes = useMemo(() => {
-    return (medicoesDocs || []).map(m => {
+    return medicoesRaw.map(m => {
       const esteira = esteiras.find(e => e.id === m.esteiraId);
       const analista = analistas.find(a => a.id === m.analistaId);
       return {
@@ -39,7 +40,7 @@ export function DashboardPage() {
   // KPIs
   const totalMedicoes = filteredMedicoes.length;
   const totalTempo = filteredMedicoes.reduce((acc, curr) => acc + curr.tempoEmMilissegundos, 0);
-  const tmoGeral = totalMedicoes > 0 ? Math.floor(totalTempo / totalMedicoes) : 0;
+  const tmoMedio = totalMedicoes > 0 ? Math.floor(totalTempo / totalMedicoes) : 0;
   
   const uniqueAnalistas = new Set(filteredMedicoes.map(m => m.analistaId)).size;
   const uniqueEsteiras = new Set(filteredMedicoes.map(m => m.esteiraId)).size;
@@ -56,8 +57,9 @@ export function DashboardPage() {
     });
     return Array.from(map.entries()).map(([nome, data]) => ({
       name: nome,
-      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)) // em minutos
-    }));
+      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)), // em minutos
+      ms: Math.floor(data.total / data.count)
+    })).sort((a,b) => a.name.localeCompare(b.name));
   }, [medicoes]);
 
   // Chart Data: TMO por Analista
@@ -69,8 +71,9 @@ export function DashboardPage() {
     });
     return Array.from(map.entries()).map(([nome, data]) => ({
       name: nome,
-      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)) // em minutos
-    })).sort((a,b) => b.TMO - a.TMO);
+      TMO: parseFloat(((data.total / data.count) / 60000).toFixed(2)), // em minutos
+      ms: Math.floor(data.total / data.count)
+    })).sort((a,b) => a.name.localeCompare(b.name));
   }, [filteredMedicoes]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -78,11 +81,20 @@ export function DashboardPage() {
       return (
         <div className="bg-white p-3 border rounded shadow-sm text-sm">
           <p className="font-semibold text-gray-800">{label}</p>
-          <p className="text-blue-600">TMO: {payload[0].value} min</p>
+          <p className="text-slate-600">TMO: {payload[0].value} min</p>
         </div>
       );
     }
     return null;
+  };
+
+  const CustomBarLabel = (props: any) => {
+    const { x, y, width, value } = props;
+    return (
+      <text x={x + width / 2} y={y - 10} fill="#6b7280" fontSize={11} textAnchor="middle">
+        {formatTimeHHMMSS(value)}
+      </text>
+    );
   };
 
   return (
@@ -101,18 +113,18 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6 flex items-center space-x-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
+            <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
               <Clock className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-500">TMO Geral</p>
-              <h3 className="text-2xl font-bold text-gray-900">{formatTime(tmoGeral).substring(0, 8)}</h3>
+              <p className="text-sm font-medium text-gray-500">TMO Médio</p>
+              <h3 className="text-2xl font-bold text-gray-900">{formatTimeHHMMSS(tmoMedio)}</h3>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 flex items-center space-x-4">
-            <div className="p-3 bg-indigo-100 text-indigo-600 rounded-full">
+            <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
               <Hash className="w-6 h-6" />
             </div>
             <div>
@@ -123,7 +135,7 @@ export function DashboardPage() {
         </Card>
         <Card>
           <CardContent className="p-6 flex items-center space-x-4">
-            <div className="p-3 bg-green-100 text-green-600 rounded-full">
+            <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
               <Users className="w-6 h-6" />
             </div>
             <div>
@@ -134,7 +146,7 @@ export function DashboardPage() {
         </Card>
         <Card>
           <CardContent className="p-6 flex items-center space-x-4">
-            <div className="p-3 bg-amber-100 text-amber-600 rounded-full">
+            <div className="p-3 bg-slate-100 text-slate-600 rounded-full">
               <Activity className="w-6 h-6" />
             </div>
             <div>
@@ -148,7 +160,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>TMO por Esteira (Minutos)</CardTitle>
+            <CardTitle>TMO por Esteira</CardTitle>
           </CardHeader>
           <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
             <div style={{ width: tmoPorEsteiraData.length > 6 ? `${tmoPorEsteiraData.length * 80}px` : '100%', height: '100%' }}>
@@ -158,7 +170,9 @@ export function DashboardPage() {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <RechartsTooltip content={<CustomTooltip />} />
-                  <Bar dataKey="TMO" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                  <Bar dataKey="TMO" fill="#1e3a8a" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                    <LabelList dataKey="ms" content={<CustomBarLabel />} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -167,7 +181,7 @@ export function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>TMO médio por analista</CardTitle>
+            <CardTitle>TMO Médio por Analista</CardTitle>
           </CardHeader>
           <CardContent className="h-80 overflow-x-auto overflow-y-hidden">
             <div style={{ width: tmoPorAnalistaData.length > 6 ? `${tmoPorAnalistaData.length * 80}px` : '100%', height: '100%' }}>
@@ -177,7 +191,9 @@ export function DashboardPage() {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#6b7280', fontSize: 12}} />
                   <RechartsTooltip content={<CustomTooltip />} />
-                  <Bar dataKey="TMO" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                  <Bar dataKey="TMO" fill="#1e3a8a" radius={[4, 4, 0, 0]} maxBarSize={50}>
+                    <LabelList dataKey="ms" content={<CustomBarLabel />} />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -194,15 +210,15 @@ export function DashboardPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-white rounded-lg border border-slate-200">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Menor Tempo</p>
-                <p className="text-lg font-mono font-medium mt-1">{formatTime(menorTempo).substring(0,8)}</p>
+                <p className="text-lg font-mono font-medium mt-1">{formatTimeHHMMSS(menorTempo)}</p>
               </div>
               <div className="p-4 bg-white rounded-lg border border-slate-200">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Maior Tempo</p>
-                <p className="text-lg font-mono font-medium mt-1">{formatTime(maiorTempo).substring(0,8)}</p>
+                <p className="text-lg font-mono font-medium mt-1">{formatTimeHHMMSS(maiorTempo)}</p>
               </div>
               <div className="p-4 bg-white rounded-lg border border-slate-200">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Tempo Total Acumulado</p>
-                <p className="text-lg font-mono font-medium mt-1">{formatTime(totalTempo).substring(0,8)}</p>
+                <p className="text-lg font-mono font-medium mt-1">{formatTimeHHMMSS(totalTempo)}</p>
               </div>
               <div className="p-4 bg-white rounded-lg border border-slate-200">
                 <p className="text-xs text-slate-500 uppercase font-semibold">Última Medição</p>

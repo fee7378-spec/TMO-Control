@@ -16,7 +16,7 @@ export function EsteirasPage() {
   const [formData, setFormData] = useState({ nome: '', descricao: '', status: 'Ativa' as 'Ativa'|'Inativa' });
 
   const [esteirasDocs, loading, error] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
-  const esteiras = esteirasDocs || [];
+  const esteiras = Array.from(new Map((esteirasDocs || []).map(e => [e.id, e])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
 
   const filteredEsteiras = esteiras?.filter(e => e.nome.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
@@ -126,7 +126,7 @@ export function EsteirasPage() {
                         </td>
                         <td className="px-4 py-3">{formatDateTime(esteira.createdAt)}</td>
                         <td className="px-4 py-3 text-right space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(esteira)}><Edit2 className="h-4 w-4 text-blue-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(esteira)}><Edit2 className="h-4 w-4 text-slate-600" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(esteira.id!)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
                         </td>
                       </tr>

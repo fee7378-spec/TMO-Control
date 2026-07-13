@@ -16,6 +16,14 @@ export function formatTime(ms: number) {
   return `${hours}:${minutes}:${seconds}:${milliseconds}`;
 }
 
+export function formatTimeHHMMSS(ms: number) {
+  const date = new Date(ms);
+  const hours = Math.floor(ms / 3600000).toString().padStart(2, '0');
+  const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+  const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 export function formatDateTime(timestamp: number) {
   return format(new Date(timestamp), 'dd/MM/yyyy HH:mm:ss');
 }

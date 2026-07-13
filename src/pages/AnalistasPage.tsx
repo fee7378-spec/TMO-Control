@@ -16,7 +16,7 @@ export function AnalistasPage() {
   const [formData, setFormData] = useState({ nome: '' });
 
   const [analistasDocs, loading, error] = useListVals<Analista>(analistasRef, { keyField: 'id' });
-  const analistas = analistasDocs || [];
+  const analistas = Array.from(new Map((analistasDocs || []).map(a => [a.id, a])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
 
   const filteredAnalistas = analistas?.filter(a => a.nome.toLowerCase().includes(searchTerm.toLowerCase())) || [];
 
@@ -109,7 +109,7 @@ export function AnalistasPage() {
                         <td className="px-4 py-3 font-medium text-gray-900">{analista.nome}</td>
                         <td className="px-4 py-3">{formatDateTime(analista.createdAt)}</td>
                         <td className="px-4 py-3 text-right space-x-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(analista)}><Edit2 className="h-4 w-4 text-blue-600" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(analista)}><Edit2 className="h-4 w-4 text-slate-600" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(analista.id!)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
                         </td>
                       </tr>

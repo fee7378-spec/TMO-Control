@@ -55,9 +55,9 @@ function MedicaoManual({
   };
 
   return (
-    <Card className="border-blue-100 shadow-sm">
-      <CardHeader className="bg-blue-50/50 pb-4 border-b border-blue-100">
-        <CardTitle className="text-blue-900 flex items-center text-lg">
+    <Card className="border-slate-200 shadow-sm">
+      <CardHeader className="bg-slate-50 pb-4 border-b border-slate-200">
+        <CardTitle className="text-slate-800 flex items-center text-lg">
           <Edit3 className="w-4 h-4 mr-2" /> Inserção Manual de Tratativa
         </CardTitle>
       </CardHeader>
@@ -92,7 +92,7 @@ function MedicaoManual({
               <Label>Observação (Opcional)</Label>
               <Input value={observacao} onChange={e => setObservacao(e.target.value)} placeholder="Detalhes da tratativa..." />
             </div>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="bg-slate-800 hover:bg-slate-900 text-white">
               <Save className="w-4 h-4 mr-2" /> Salvar Manual
             </Button>
           </div>
@@ -181,7 +181,7 @@ const MedicaoCronometro: React.FC<{
   };
 
   return (
-    <Card className="border-blue-100 shadow-blue-50 relative">
+    <Card className="border-slate-200 shadow-sm relative">
       <Button 
         variant="ghost" 
         size="icon" 
@@ -191,8 +191,8 @@ const MedicaoCronometro: React.FC<{
       >
         <X className="w-4 h-4" />
       </Button>
-      <CardHeader className="bg-blue-50/50 border-b border-blue-100 pb-4">
-        <CardTitle className="text-blue-900 flex items-center text-lg"><Play className="w-4 h-4 mr-2" /> Cronômetro</CardTitle>
+      <CardHeader className="bg-slate-50 border-b border-slate-200 pb-4">
+        <CardTitle className="text-slate-800 flex items-center text-lg"><Play className="w-4 h-4 mr-2" /> Cronômetro</CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -252,14 +252,14 @@ export function HistoricoPage() {
   const [cronometros, setCronometros] = useState<string[]>(['1']);
 
   const [esteirasDocs] = useListVals<Esteira>(esteirasRef, { keyField: 'id' });
-  const esteiras = esteirasDocs || [];
+  const esteiras = Array.from(new Map((esteirasDocs || []).map(e => [e.id, e])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
   
   const [analistasDocs] = useListVals<Analista>(analistasRef, { keyField: 'id' });
-  const analistas = analistasDocs || [];
+  const analistas = Array.from(new Map((analistasDocs || []).map(a => [a.id, a])).values()).sort((a,b) => a.nome.localeCompare(b.nome));
 
   const [medicoesDocs, loading] = useListVals<Medicao>(query(medicoesRef, orderByChild('createdAt')), { keyField: 'id' });
   
-  const medicoes = (medicoesDocs || [])
+  const medicoes = Array.from(new Map((medicoesDocs || []).map(m => [m.id, m])).values())
     .map(m => {
     const esteira = esteiras.find(e => e.id === m.esteiraId);
     const analista = analistas.find(a => a.id === m.analistaId);
@@ -377,7 +377,7 @@ export function HistoricoPage() {
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.createdAt).split(' ')[0]}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{m.esteiraNome}</td>
                     <td className="px-4 py-3">{m.analistaNome}</td>
-                    <td className="px-4 py-3 font-mono font-medium text-blue-600">{m.tempoFormatado}</td>
+                    <td className="px-4 py-3 font-mono font-medium text-slate-600">{m.tempoFormatado}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaInicio).split(' ')[1]}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(m.horaFim).split(' ')[1]}</td>
                     <td className="px-4 py-3 truncate max-w-xs" title={m.observacao}>{m.observacao}</td>
