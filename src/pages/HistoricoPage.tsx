@@ -4,7 +4,7 @@ import { esteirasRef, analistasRef, medicoesRef, push, set, query, orderByChild,
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input, Label, Select } from '../components/ui/Input';
-import { formatTime, formatDateTime } from '../utils';
+import { formatTime, formatTimeHHMMSS, formatDateTime } from '../utils';
 import { Play, Pause, Square, RotateCcw, Save, Download, Plus, X, Edit3, Trash2 } from 'lucide-react';
 import type { Medicao, Esteira, Analista } from '../types';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -261,7 +261,7 @@ export function HistoricoPage() {
   const exportCSV = () => {
     const csvContent = "\uFEFFID,Esteira,Analista,Tempo,Hora Início,Hora Fim,Observação\n"
       + medicoes.map(m => 
-          `${m.id},"${m.esteiraNome}","${m.analistaNome}",${m.tempoFormatado},"${formatDateTime(m.horaInicio)}","${formatDateTime(m.horaFim)}","${m.observacao}"`
+          `${m.id},"${m.esteiraNome}","${m.analistaNome}",${formatTimeHHMMSS(m.tempoEmMilissegundos)},"${formatDateTime(m.horaInicio)}","${formatDateTime(m.horaFim)}","${m.observacao}"`
         ).join("\n");
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const encodedUri = URL.createObjectURL(blob);
